@@ -1,10 +1,10 @@
-import { useSelector,useDispatch } from "react-redux";
+import { useSelector} from "react-redux";
 import { Row, Col, ListGroup, Image, Card, Button } from "react-bootstrap";
-import { useState,useEffect } from "react";
-import { useNavigate, Link, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import {  Link, useParams } from "react-router-dom";
 import { toast } from "react-toastify"
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js"
-import { useGetOrderDetailsQuery, usePayOrderMutation, useGetPayPalClientIdQuery } from "../slices/ordersApiSlice";
+import { useGetOrderDetailsQuery, usePayOrderMutation, useGetPayPalClientIdQuery, useDeliverOrderMutation } from "../slices/ordersApiSlice";
 import Loader from "../Components/Loader";
 import Message from "../Components/Message";
 
@@ -22,13 +22,15 @@ const OrderScreen = () => {
 
     const [payOrder, { isLoading:loadingPay }] = usePayOrderMutation();
 
+    const [deliverOrder, {isLoading:loadingDeliver, error:errorDeliver}] = useDeliverOrderMutation()
+
     const [{ isPending }, paypalDispatch] = usePayPalScriptReducer();
 
     const {data: paypal,
            isLoading: loadingPayPal,
            error:errorPayPal } = useGetPayPalClientIdQuery();
 
-    const userInfo = useSelector((state)=>state.auth);
+    const userInfo = useSelector((state)=>state.auth.userInfo);
 
     useEffect(()=>{
         if(!errorPayPal && !loadingPayPal && paypal.clientId){
@@ -85,7 +87,16 @@ const OrderScreen = () => {
         toast.error(err.message);
     };
 
- 
+    console.log(orderId);
+    async function deliverOrderHandler(){
+        try {
+            await deliverOrder(orderId);
+            refetch();
+            toast.success('Order delivered');
+        } catch (err) {
+            toast.error(err?.data?.message || err.message);
+        }
+    };
 
    
 
@@ -222,6 +233,16 @@ const OrderScreen = () => {
                     )}
                 </ListGroup.Item>
               )}
+                    {loadingDeliver && <Loader />}
+
+                    {userInfo && userInfo.isAdmin && order.isPaid && !order.isDelivered 
+                        && (
+                            <ListGroup.Item>
+                            <Button
+                                onClick = {deliverOrderHandler}
+                                >Mark as Delivered</Button>
+                            </ListGroup.Item>
+                        )}
               </ListGroup>
               </Card>
         </Col>
